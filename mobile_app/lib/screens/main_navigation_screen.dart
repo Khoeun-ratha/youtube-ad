@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_theme.dart';
+import '../providers/feed_provider.dart';
 import '../providers/player_provider.dart';
 import '../widgets/player_panel.dart';
 import 'home_screen.dart';
@@ -26,6 +27,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final GlobalKey _stackKey = GlobalKey();
   Rect? _miniRect;
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+  static const int _homeTab = 0;
+  final ScrollController _homeScroll = ScrollController();
+  final GlobalKey<RefreshIndicatorState> _homeRefreshKey = GlobalKey<RefreshIndicatorState>();
+
+  @override
+  void dispose() {
+    _homeScroll.dispose();
+    super.dispose();
+  }
+
+  /// Tapping Home: jump back to the top of the feed and reload it.
+  void _refreshHome() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (_homeScroll.hasClients && _homeScroll.offset > 0) {
+        await _homeScroll.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+      }
+      if (!mounted) return;
+      final indicator = _homeRefreshKey.currentState;
+      if (indicator != null) {
+        indicator.show();
+      } else {
+        context.read<FeedProvider>().refresh();
+      }
+    });
+  }
 
   Widget _tabNavigator(int index, Widget root) {
     return Navigator(
@@ -40,9 +67,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (index == _currentIndex) {
       // Re-tapping a tab goes back to its first page, like YouTube.
       _navigatorKeys[index].currentState?.popUntil((r) => r.isFirst);
-      return;
+    } else {
+      setState(() => _currentIndex = index);
     }
-    setState(() => _currentIndex = index);
+    if (index == _homeTab) _refreshHome();
   }
 
   Future<void> _handleBack() async {
@@ -147,7 +175,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     child: IndexedStack(
                       index: _currentIndex,
                       children: [
-                        _tabNavigator(0, const HomeScreen()),
+                        _tabNavigator(_homeTab, HomeScreen(scrollController: _homeScroll, refreshKey: _homeRefreshKey)),
                         ShortsScreen(active: _currentIndex == _shortsTab && !showExpanded),
                         _tabNavigator(2, const SubscriptionsScreen()),
                         _tabNavigator(3, const LibraryScreen()),

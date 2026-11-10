@@ -11,7 +11,12 @@ import 'settings_screen.dart';
 import 'shorts_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  /// Owned by the app shell so tapping the Home tab can scroll to the top
+  /// and trigger a refresh.
+  final ScrollController? scrollController;
+  final GlobalKey<RefreshIndicatorState>? refreshKey;
+
+  const HomeScreen({super.key, this.scrollController, this.refreshKey});
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +26,7 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
+          key: refreshKey,
           color: AppColors.textPrimary,
           backgroundColor: AppColors.surface,
           onRefresh: feed.refresh,
@@ -30,6 +36,7 @@ class HomeScreen extends StatelessWidget {
               return false;
             },
             child: CustomScrollView(
+              controller: scrollController,
               slivers: [
                 SliverAppBar(
                   floating: true,
