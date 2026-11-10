@@ -1,0 +1,16 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.iml
+
+# Build outputs
+*.apk
+*.aab
+build/
+
+# Logs
+*.log
+hs_err_pid*.log
