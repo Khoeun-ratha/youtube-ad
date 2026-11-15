@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,11 +19,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///  3. Credentials -> Create OAuth client ID -> type **Android**,
 ///     package `com.adfree.youtube.mobile_app`, SHA-1 of the signing key,
 ///     then Advanced settings -> enable **Custom URI scheme**.
-///  4. Paste the client ID below.
+///  4. Paste the client ID into [androidClientId].
+///
+/// iOS (signs in through an ASWebAuthenticationSession Safari sheet):
+///  5. Credentials -> Create OAuth client ID -> type **iOS**, bundle ID
+///     `com.adfree.youtube.mobileApp`, and paste it into [iosClientId].
+///     Its redirect is the reversed client ID
+///     (`com.googleusercontent.apps.<id>:/oauth2redirect`), worked out below.
 class GoogleOAuth {
-  static const String clientId = ''; // e.g. 1234-abcd.apps.googleusercontent.com
+  static const String androidClientId = ''; // e.g. 1234-abcd.apps.googleusercontent.com
+  static const String iosClientId = ''; // e.g. 1234-efgh.apps.googleusercontent.com
 
-  static const String redirectUri = 'com.adfree.youtube.mobile_app:/oauth2redirect';
+  static bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  static String get clientId => _isIOS ? iosClientId : androidClientId;
+
+  /// Custom URL scheme Google redirects to after sign-in.
+  static String get redirectScheme {
+    if (!_isIOS) return 'com.adfree.youtube.mobile_app';
+    const suffix = '.apps.googleusercontent.com';
+    final id = iosClientId.endsWith(suffix)
+        ? iosClientId.substring(0, iosClientId.length - suffix.length)
+        : iosClientId;
+    return 'com.googleusercontent.apps.$id';
+  }
+
+  static String get redirectUri => '$redirectScheme:/oauth2redirect';
   static const List<String> scopes = [
     'openid',
     'email',
@@ -62,7 +84,8 @@ class GoogleOAuth {
   /// comes back. Returns true when the app is signed in.
   static Future<bool> signIn() async {
     if (!isConfigured) {
-      throw const OAuthException('Google sign-in is not set up: GoogleOAuth.clientId is empty.');
+      throw OAuthException('Google sign-in is not set up: GoogleOAuth.'
+          '${_isIOS ? 'iosClientId' : 'androidClientId'} is empty.');
     }
     final verifier = _randomString(64);
     final challenge = base64Url.encode(sha256.convert(ascii.encode(verifier)).bytes).replaceAll('=', '');
@@ -84,7 +107,7 @@ class GoogleOAuth {
     _pending = Completer<Uri>();
     // The native side reports back the redirect URL, or `<redirectUri>?error=
     // access_denied` when the user closes the browser without finishing.
-    await _channel.invokeMethod('open', {'url': authUrl.toString()});
+    await _channel.invokeMethod('open', {'url': authUrl.toString(), 'scheme': redirectScheme});
 
     final result = await _pending!.future;
     _pending = null;

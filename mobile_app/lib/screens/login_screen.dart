@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -19,10 +20,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // A regular mobile Chrome user agent: Google refuses to sign in inside
-  // WebViews that identify themselves as such ("; wv").
-  static const _userAgent =
+  // A regular mobile browser user agent: Google refuses to sign in inside
+  // WebViews that identify themselves as such ("; wv" on Android, no
+  // "Safari/" token on iOS).
+  static const _androidUserAgent =
       'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
+  static const _iosUserAgent =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  static String get _userAgent =>
+      defaultTargetPlatform == TargetPlatform.iOS ? _iosUserAgent : _androidUserAgent;
   static const _continue =
       'https://www.youtube.com/signin?action_handle_signin=true&app=m&next=%2F';
   static final _loginUrl = Uri.https('accounts.google.com', '/AccountChooser', {
