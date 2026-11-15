@@ -410,6 +410,30 @@ const _pageScript = r'''
     quality: function (q) { wantQuality = q; appliedQuality = ''; },
   };
 
+  // ---- Lock screen / Control Center / headphone buttons.
+  // iOS sends these to the page through the Media Session API. Without our
+  // own handlers the system pauses the <video> directly, and the "resume
+  // unexpected pauses" logic below starts it again straight away, so Pause
+  // never sticks. Treat them like the app's own play/pause, and keep
+  // YouTube's page from replacing these handlers with its own.
+  try {
+    var ms = navigator.mediaSession;
+    if (ms && ms.setActionHandler) {
+      var setHandler = ms.setActionHandler.bind(ms);
+      var remote = {
+        play: function () { window.__adfree.play(); },
+        pause: function () { window.__adfree.pause(); },
+        stop: function () { window.__adfree.pause(); },
+      };
+      ms.setActionHandler = function (action, handler) {
+        return setHandler(action, remote[action] || handler);
+      };
+      Object.keys(remote).forEach(function (a) {
+        try { setHandler(a, remote[a]); } catch (e) {}
+      });
+    }
+  } catch (e) {}
+
   function tick() {
     addCss();
     var v = video();
